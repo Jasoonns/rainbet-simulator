@@ -21,7 +21,8 @@
             margin: 0; 
             overflow: hidden; 
         }
-
+        
+        /* --- SIDEBAR STYLE (MATCHES BLACKJACK & MINES) --- */
         .sidebar { 
             width: 240px; 
             background: #131721; 
@@ -53,6 +54,7 @@
         .nav-item:hover { color: white; background: rgba(255,255,255,0.05); }
         .nav-item.active { color: white; background: rgba(0, 231, 1, 0.05); }
 
+        /* --- GAME LAYOUT --- */
         .game-layout { flex: 1; display: flex; flex-direction: column; }
         
         header { 
@@ -68,6 +70,7 @@
 
         .main-content { flex: 1; display: flex; overflow: hidden; }
 
+        /* --- CONTROLS --- */
         .controls-panel { 
             width: 300px; 
             background: #1a202e; 
@@ -97,177 +100,210 @@
         }
         .btn-play:active { transform: translateY(2px); box-shadow: 0 2px 0 #00b301; }
 
+        /* --- STAGE --- */
         .stage { 
             flex: 1; 
             background: radial-gradient(circle at center, #1f2a36 0%, #0f1219 100%); 
             display: flex; 
+            flex-direction: column; 
             align-items: center; 
             justify-content: center; 
             position: relative; 
             padding: 20px;
         }
-
+        
         .balance-display { 
             background: #1a202e; 
             padding: 8px 16px; 
             border-radius: 6px; 
             font-weight: bold; 
             border: 1px solid var(--accent); 
-            min-width: 120px; 
+            min-width: 100px; 
             text-align: center; 
         }
 
-        canvas { background: transparent; }
+        canvas { 
+            background: transparent; 
+            max-width: 100%;
+            max-height: 85vh;
+        }
     </style>
 </head>
 <body>
-
-<div class="sidebar">
-    <a href="index.html" class="logo">Rain<span>bet</span></a>
-    <a href="index.html" class="nav-item">🏠 Home</a>
-    <a href="blackjack.html" class="nav-item">♠️ Blackjack</a>
-    <a href="mines.html" class="nav-item">💎 Mines</a>
-    <a href="plinko.html" class="nav-item active">🔻 Plinko</a>
-</div>
-
-<div class="game-layout">
-<header>
-    <div class="balance-display" id="displayBalance">$0.00</div>
-    <div class="balance-display" id="profitDisplay">Profit: $0.00</div>
-
-    <button onclick="toggleGraph()" style="
-        background:#1a202e;
-        color:white;
-        border:1px solid #2f4553;
-        padding:8px 14px;
-        border-radius:6px;
-        cursor:pointer;
-        font-weight:700;">
-        📈 Earnings
-    </button>
-</header>
-
-<div class="main-content">
-<div class="controls-panel">
-    <label class="input-label">Bet Amount</label>
-    <div class="input-box">
-        <span style="color:var(--text-muted)">$</span>
-        <input type="number" id="bet" value="10">
+    <div class="sidebar">
+        <a href="index.html" class="logo">Rain<span>bet</span></a>
+        <a href="index.html" class="nav-item">🏠 Home</a>
+        <a href="blackjack.html" class="nav-item">♠️ Blackjack</a>
+        <a href="mines.html" class="nav-item">💎 Mines</a>
+        <a href="plinko.html" class="nav-item active" style="color:white">🔻 Plinko</a>
     </div>
-    <button class="btn-play" onclick="drop()">Drop Ball</button>
-</div>
 
-<div class="stage">
-    <canvas id="gameCanvas" width="800" height="600"></canvas>
-</div>
-</div>
-</div>
+    <div class="game-layout">
+        <header>
+            <div class="balance-display" id="displayBalance">$0.00</div>
+        </header>
 
-<!-- GRAPH OVERLAY -->
-<div id="graphOverlay" style="
-    position:fixed;
-    inset:0;
-    background:rgba(0,0,0,0.6);
-    display:none;
-    align-items:center;
-    justify-content:center;
-    z-index:999;">
-    <div style="background:#0f1219;padding:20px;border-radius:10px;border:1px solid #2f4553;">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
-            <strong>Earnings History</strong>
-            <button onclick="toggleGraph()" style="background:none;border:none;color:#94a3b8;font-size:18px;cursor:pointer">✖</button>
+        <div class="main-content">
+            <div class="controls-panel">
+                <div>
+                    <label class="input-label">Bet Amount</label>
+                    <div class="input-box">
+                        <span style="color:var(--text-muted); margin-right:5px">$</span>
+                        <input type="number" id="bet" value="10.00">
+                    </div>
+                </div>
+                <div>
+                    <label class="input-label">Risk</label>
+                    <div class="input-box">
+                        <select id="risk">
+                            <option value="low">Low</option>
+                            <option value="medium" selected>Medium</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+                </div>
+                <div>
+                    <label class="input-label">Rows</label>
+                    <div class="input-box">
+                        <select id="rows" disabled>
+                            <option>16</option>
+                        </select>
+                    </div>
+                </div>
+                <button class="btn-play" onclick="drop()">Drop Ball</button>
+            </div>
+
+            <div class="stage">
+                <canvas id="gameCanvas" width="800" height="600"></canvas>
+            </div>
         </div>
-        <canvas id="profitGraph" width="560" height="260"></canvas>
     </div>
-</div>
 
-<script>
-function getBal() { return parseFloat(localStorage.getItem('rainBalance')) || 0; }
-
-let startingBalance = getBal();
-let profitHistory = [startingBalance];
-
-function setBal(n) {
-    localStorage.setItem('rainBalance', n.toFixed(2));
-    displayBalance.innerText = '$' + n.toFixed(2);
-
-    let profit = n - startingBalance;
-    profitDisplay.innerText = 'Profit: ' + (profit>=0?'+':'') + profit.toFixed(2);
-    profitDisplay.style.color = profit>=0 ? '#00e701' : '#ef4444';
-
-    profitHistory.push(n);
-}
-setBal(getBal());
-
-const canvas = gameCanvas;
-const ctx = canvas.getContext('2d');
-const startX = 400, startY = 50, gap = 30, rows = 16;
-const ballSize = 6, pegSize = 3;
-let balls = [], pegs = [];
-
-for(let r=0;r<rows;r++)
-for(let c=0;c<=r+2;c++)
-pegs.push({x:startX-(r+2)*gap/2+c*gap,y:startY+r*gap});
-
-const mults=[110,41,10,5,3,1.5,1,0.5,0.3,0.5,1,1.5,3,5,10,41,110];
-
-function drop(){
-    let bet=+betInput.value;
-    if(bet<=0||bet>getBal())return alert("Invalid bet");
-    setBal(getBal()-bet);
-    balls.push({x:startX,y:20,vx:0,vy:0,bet,active:true});
-}
-
-function update(){
-    ctx.clearRect(0,0,800,600);
-    ctx.fillStyle="rgba(255,255,255,.6)";
-    pegs.forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,pegSize,0,6.28);ctx.fill();});
-
-    let bottomY=startY+rows*gap+10;
-    balls.forEach(b=>{
-        if(!b.active)return;
-        b.vy+=0.2; b.x+=b.vx; b.y+=b.vy;
-
-        pegs.forEach(p=>{
-            let dx=b.x-p.x,dy=b.y-p.y,d=Math.hypot(dx,dy);
-            if(d<ballSize+pegSize){
-                let a=Math.atan2(dy,dx);
-                b.vx=Math.cos(a)*1.5+(Math.random()-.5);
-            }
-        });
-
-        ctx.fillStyle="#00e701";
-        ctx.beginPath();ctx.arc(b.x,b.y,ballSize,0,6.28);ctx.fill();
-
-        if(b.y>bottomY){
-            b.active=false;
-            let idx=Math.max(0,Math.min(mults.length-1,Math.floor((b.x-(startX-rows*gap/2))/gap)));
-            setBal(getBal()+b.bet*(mults[idx]||0.3));
+    <script>
+        // WALLET LOGIC
+        function getBal() { return parseFloat(localStorage.getItem('rainBalance')) || 0; }
+        function setBal(n) { 
+            localStorage.setItem('rainBalance', n.toFixed(2)); 
+            document.getElementById('displayBalance').innerText = '$' + n.toLocaleString(undefined, {minimumFractionDigits: 2}); 
         }
-    });
-    requestAnimationFrame(update);
-}
-update();
+        setBal(getBal());
 
-function toggleGraph(){
-    graphOverlay.style.display = graphOverlay.style.display==="flex"?"none":"flex";
-    drawGraph();
-}
+        // PHYSICS & CANVAS
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const rows = 16;
+        const pegSize = 3;
+        const ballSize = 6;
+        const startX = 400;
+        const startY = 50;
+        const gap = 30; 
 
-function drawGraph(){
-    let c=profitGraph, g=c.getContext("2d");
-    g.clearRect(0,0,c.width,c.height);
-    let min=Math.min(...profitHistory), max=Math.max(...profitHistory);
-    let range=max-min||1;
+        let balls = [];
+        let pegs = [];
+        
+        // Setup Pegs
+        for(let r=0; r<rows; r++) {
+            for(let c=0; c<=r+2; c++) {
+                let x = startX - ((r+2)*gap/2) + (c*gap);
+                let y = startY + (r*gap);
+                pegs.push({x, y});
+            }
+        }
 
-    g.strokeStyle="#00e701"; g.beginPath();
-    profitHistory.forEach((v,i)=>{
-        let x=i/(profitHistory.length-1)*c.width;
-        let y=c.height-(v-min)/range*c.height;
-        i?g.lineTo(x,y):g.moveTo(x,y);
-    });
-    g.stroke();
-}
-</script>
+        const mults = [110, 41, 10, 5, 3, 1.5, 1, 0.5, 0.3, 0.5, 1, 1.5, 3, 5, 10, 41, 110];
+        
+        function getColor(val) {
+            if(val >= 10) return '#ef4444'; 
+            if(val >= 2) return '#f59e0b'; 
+            return '#eab308'; 
+        }
+
+        function drop() {
+            let bet = parseFloat(document.getElementById('bet').value);
+            if(isNaN(bet) || bet > getBal() || bet <= 0) return alert('Invalid Bet Amount');
+            setBal(getBal() - bet);
+
+            balls.push({
+                x: startX + (Math.random()*2-1), 
+                y: 20,
+                vx: 0, 
+                vy: 0,
+                active: true,
+                bet: bet
+            });
+        }
+
+        function update() {
+            ctx.clearRect(0,0,800,600);
+
+            // Draw Pegs
+            ctx.fillStyle = 'rgba(255, 255, 255, 0.6)';
+            for(let p of pegs) {
+                ctx.beginPath(); ctx.arc(p.x, p.y, pegSize, 0, 6.28); ctx.fill();
+            }
+
+            // Draw Buckets
+            let bottomY = startY + (rows * gap) + 10;
+            let count = rows + 1;
+            for(let i=0; i<count; i++) {
+                let x = startX - (count*gap/2) + (i*gap) + (gap/2);
+                let m = mults[i] || 1;
+                ctx.fillStyle = getColor(m);
+                // Rounded corner-ish look for buckets
+                ctx.beginPath();
+                ctx.roundRect(x - 12, bottomY, 24, 25, 4);
+                ctx.fill();
+                
+                ctx.fillStyle = '#000';
+                ctx.font = 'bold 9px Inter, Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText(m+'x', x, bottomY + 16);
+            }
+
+            // Draw Balls
+            for(let b of balls) {
+                if(!b.active) continue;
+                
+                b.vy += 0.2; 
+                b.vx *= 0.99; 
+                b.x += b.vx;
+                b.y += b.vy;
+
+                for(let p of pegs) {
+                    let dx = b.x - p.x;
+                    let dy = b.y - p.y;
+                    let dist = Math.sqrt(dx*dx + dy*dy);
+                    if(dist < pegSize + ballSize) {
+                        let angle = Math.atan2(dy, dx);
+                        let force = 1.5; 
+                        b.vx = Math.cos(angle) * force + (Math.random()-0.5); 
+                        b.vy = Math.sin(angle) * force;
+                        b.y += Math.sin(angle) * (pegSize+ballSize - dist);
+                    }
+                }
+
+                // Ball Glow Effect
+                ctx.shadowBlur = 10;
+                ctx.shadowColor = '#00e701';
+                ctx.fillStyle = '#00e701';
+                ctx.beginPath(); ctx.arc(b.x, b.y, ballSize, 0, 6.28); ctx.fill();
+                ctx.shadowBlur = 0; // Reset shadow
+
+                if(b.y > bottomY) {
+                    b.active = false;
+                    let totalW = count * gap;
+                    let left = startX - totalW/2;
+                    let idx = Math.floor((b.x - left) / gap);
+                    if(idx < 0) idx = 0; if(idx >= count) idx = count-1;
+                    
+                    let multiplier = mults[idx] || 0.3;
+                    let win = b.bet * multiplier;
+                    setBal(getBal() + win);
+                }
+            }
+            requestAnimationFrame(update);
+        }
+        update();
+    </script>
 </body>
 </html>
