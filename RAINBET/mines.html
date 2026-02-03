@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Mines - Rainbet</title>
+    <style>
+        :root { --bg-dark: #0f1219; --bg-panel: #1a202e; --primary: #00e701; --accent: #2f4553; }
+        body { background: var(--bg-dark); color: white; font-family: 'Inter', sans-serif; display: flex; height: 100vh; margin: 0; }
+        
+        .sidebar-nav { width: 60px; background: #131721; border-right: 1px solid #232936; display: flex; flex-direction: column; align-items: center; padding-top: 20px; }
+        .nav-icon { font-size: 24px; margin-bottom: 20px; text-decoration: none; opacity: 0.5; transition: 0.2s; }
+        .nav-icon:hover { opacity: 1; transform: scale(1.1); }
+        
+        .game-layout { flex: 1; display: flex; }
+        
+        /* Game Controls Sidebar */
+        .controls-panel { width: 300px; background: #1a202e; padding: 25px; display: flex; flex-direction: column; gap: 20px; border-right: 1px solid #232936; }
+        .input-label { color: #8892a3; font-size: 12px; font-weight: 700; margin-bottom: 5px; display: block; }
+        .input-box { background: #0f1219; border: 1px solid #2f4553; border-radius: 4px; padding: 10px; display: flex; align-items: center; }
+        .input-box input { background: transparent; border: none; color: white; width: 100%; font-weight: 600; outline: none; }
+        
+        .mine-selector { display: grid; grid-template-columns: repeat(5, 1fr); gap: 5px; background: #0f1219; padding: 5px; border-radius: 4px; border: 1px solid #2f4553; }
+        .mine-opt { padding: 8px 0; text-align: center; cursor: pointer; border-radius: 3px; font-size: 14px; font-weight: bold; color: #8892a3; }
+        .mine-opt.active { background: #2f4553; color: white; }
+        
+        .btn-play { background: var(--primary); color: #000; border: none; padding: 15px; border-radius: 4px; font-weight: 900; cursor: pointer; font-size: 16px; margin-top: auto; box-shadow: 0 4px 0 #00b301; transition: 0.1s; }
+        .btn-play:active { transform: translateY(4px); box-shadow: none; }
+        .btn-cashout { background: #3b82f6; color: white; box-shadow: 0 4px 0 #2563eb; display: none; }
+
+        /* Game Grid */
+        .stage { flex: 1; background: #0f1219; display: flex; flex-direction: column; align-items: center; justify-content: center; position: relative; }
+        header { position: absolute; top: 0; right: 0; padding: 20px; }
+        .balance { background: #1a202e; padding: 8px 16px; border-radius: 6px; font-weight: bold; border: 1px solid #2f4553; }
+        
+        .grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; width: 450px; height: 450px; }
+        .tile { background: #2f4553; border-radius: 8px; cursor: pointer; position: relative; transition: 0.1s; box-shadow: 0 4px 0 #1c2b36; display: flex; justify-content: center; align-items: center; font-size: 0; }
+        .tile:hover { filter: brightness(1.2); transform: translateY(-2px); }
+        .tile:active { transform: translateY(0); box-shadow: none; }
+        
+        .tile.revealed { background: #0f1219; box-shadow: inset 0 0 10px rgba(0,0,0,0.5); cursor: default; font-size: 24px; transform: none; }
+        .tile.gem { color: #00e701; text-shadow: 0 0 10px #00e701; }
+        .tile.bomb { color: #ef4444; background: #2a1010; }
+        
+        .tile img { width: 60%; } /* Using emojis instead of imgs for simplicity */
+    </style>
+</head>
+<body>
+    <div class="sidebar-nav">
+        <a href="index.html" class="nav-icon">🏠</a>
+        <a href="blackjack.html" class="nav-icon">♠️</a>
+        <a href="mines.html" class="nav-icon" style="opacity:1; color:#00e701">💎</a>
+        <a href="plinko.html" class="nav-icon">🔻</a>
+    </div>
+
+    <div class="game-layout">
+        <div class="controls-panel">
+            <div>
+                <label class="input-label">Bet Amount</label>
+                <div class="input-box">
+                    <span>$</span>
+                    <input type="number" id="bet" value="10.00">
+                </div>
+            </div>
+            <div>
+                <label class="input-label">Mines</label>
+                <div class="mine-selector" id="mineOpts">
+                    <div class="mine-opt" onclick="setMines(1)">1</div>
+                    <div class="mine-opt active" onclick="setMines(3)">3</div>
+                    <div class="mine-opt" onclick="setMines(5)">5</div>
+                    <div class="mine-opt" onclick="setMines(10)">10</div>
+                    <div class="mine-opt" onclick="setMines(20)">24</div>
+                </div>
+            </div>
+            <button class="btn-play" id="mainBtn" onclick="play()">BET</button>
+        </div>
+
+        <div class="stage">
+            <header><div class="balance" id="displayBalance">$0.00</div></header>
+            <div class="grid" id="grid"></div>
+        </div>
+    </div>
+
+    <script>
+        let mines = 3, bet = 0, active = false, revealed = 0;
+        let gridData = [];
+
+        function getBal() { return parseFloat(localStorage.getItem('rainBalance')) || 0; }
+        function setBal(n) { localStorage.setItem('rainBalance', n); document.getElementById('displayBalance').innerText = '$'+n.toFixed(2); }
+        setBal(getBal());
+
+        function init() {
+            let g = document.getElementById('grid');
+            g.innerHTML = '';
+            for(let i=0; i<25; i++) {
+                let t = document.createElement('div');
+                t.className = 'tile';
+                t.onclick = () => clickTile(i);
+                t.id = `t-${i}`;
+                g.appendChild(t);
+            }
+        }
+        init();
+
+        function setMines(n) {
+            if(active) return;
+            mines = n;
+            document.querySelectorAll('.mine-opt').forEach(e => e.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+
+        function play() {
+            if(active) { cashout(); return; } // Button acts as cashout if active
+
+            bet = parseFloat(document.getElementById('bet').value);
+            if(bet > getBal() || bet <= 0) return alert('Invalid Balance');
+            setBal(getBal() - bet);
+
+            active = true;
+            revealed = 0;
+            gridData = Array(25).fill('gem');
+            // Plant mines
+            let planted = 0;
+            while(planted < mines) {
+                let r = Math.floor(Math.random()*25);
+                if(gridData[r] === 'gem') { gridData[r] = 'bomb'; planted++; }
+            }
+
+            init(); // Reset visuals
+            let btn = document.getElementById('mainBtn');
+            btn.innerText = "CASHOUT";
+            btn.className = "btn-play btn-cashout";
+        }
+
+        function clickTile(idx) {
+            if(!active) return;
+            let el = document.getElementById(`t-${idx}`);
+            if(el.classList.contains('revealed')) return;
+
+            if(gridData[idx] === 'bomb') {
+                // LOSE
+                el.classList.add('revealed', 'bomb');
+                el.innerHTML = '💣';
+                endGame(false);
+            } else {
+                // WIN GEM
+                el.classList.add('revealed', 'gem');
+                el.innerHTML = '💎';
+                revealed++;
+                
+                // Multiplier Logic (Simplified Rainbet math)
+                let totalTiles = 25;
+                let remainingTiles = totalTiles - revealed;
+                let remainingSafe = (totalTiles - mines) - revealed + 1;
+                // Just update button text with current value
+                let mult = calculateMult();
+                document.getElementById('mainBtn').innerText = `CASHOUT $${(bet*mult).toFixed(2)}`;
+                
+                if(revealed === 25 - mines) cashout(); // Auto win
+            }
+        }
+
+        function calculateMult() {
+            // Rough approximation of standard mines multiplier
+            let houseEdge = 0.99;
+            let prob = 1;
+            for(let i=0; i<revealed; i++) {
+                prob *= (25 - mines - i) / (25 - i);
+            }
+            return (1/prob) * houseEdge;
+        }
+
+        function cashout() {
+            if(!active) return;
+            let win = bet * calculateMult();
+            setBal(getBal() + win);
+            endGame(true);
+        }
+
+        function endGame(won) {
+            active = false;
+            // Reveal all
+            gridData.forEach((type, i) => {
+                let el = document.getElementById(`t-${i}`);
+                if(!el.classList.contains('revealed')) {
+                    el.classList.add('revealed');
+                    el.style.opacity = '0.5';
+                    if(type === 'bomb') el.innerHTML = '💣';
+                    else el.innerHTML = '💎';
+                }
+            });
+            let btn = document.getElementById('mainBtn');
+            btn.innerText = "BET";
+            btn.className = "btn-play";
+        }
+    </script>
+</body>
+</html>
